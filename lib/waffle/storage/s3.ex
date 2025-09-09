@@ -276,7 +276,7 @@ defmodule Waffle.Storage.S3 do
     bucket = s3_bucket(definition, file_and_scope)
     case get_s3_config() do
       {scheme, host, port} when not is_nil(scheme) and not is_nil(host) ->
-        build_url_with_config(scheme, host, port, bucket)
+        build_virtual_host_url_with_config(scheme, host, port, bucket)
       _ ->
         "https://#{bucket}.s3.amazonaws.com"
     end
@@ -286,13 +286,21 @@ defmodule Waffle.Storage.S3 do
     bucket = s3_bucket(definition, file_and_scope)
     case get_s3_config() do
       {scheme, host, port} when not is_nil(scheme) and not is_nil(host) ->
-        build_url_with_config(scheme, host, port, bucket)
+        build_path_style_url_with_config(scheme, host, port, bucket)
       _ ->
         "https://s3.amazonaws.com/#{bucket}"
     end
   end
 
-  defp build_url_with_config(scheme, host, port, bucket) do
+  defp build_virtual_host_url_with_config(scheme, host, port, bucket) do
+    case port do
+      443 when scheme == "https://" -> "#{scheme}#{bucket}.#{host}"
+      80 when scheme == "http://" -> "#{scheme}#{bucket}.#{host}"
+      _ -> "#{scheme}#{bucket}.#{host}:#{port}"
+    end
+  end
+
+  defp build_path_style_url_with_config(scheme, host, port, bucket) do
     case port do
       443 when scheme == "https://" -> "#{scheme}#{host}/#{bucket}"
       80 when scheme == "http://" -> "#{scheme}#{host}/#{bucket}"
