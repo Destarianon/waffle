@@ -267,8 +267,57 @@ defmodule Waffle.Storage.S3 do
 
   defp default_host(definition, file_and_scope) do
     case virtual_host() do
-      true -> "https://#{s3_bucket(definition, file_and_scope)}.s3.amazonaws.com"
-      _ -> "https://s3.amazonaws.com/#{s3_bucket(definition, file_and_scope)}"
+      true -> build_virtual_host_url(definition, file_and_scope)
+      _ -> build_path_style_url(definition, file_and_scope)
+    end
+  end
+
+  defp build_virtual_host_url(definition, file_and_scope) do
+    bucket = s3_bucket(definition, file_and_scope)
+    case get_s3_config() do
+      {scheme, host, port} when not is_nil(scheme) and not is_nil(host) ->
+        build_url_with_config(scheme, host, port, bucket)
+      _ ->
+        "https://#{bucket}.s3.amazonaws.com"
+    end
+  end
+
+  defp build_path_style_url(definition, file_and_scope) do
+    bucket = s3_bucket(definition, file_and_scope)
+    case get_s3_config() do
+      {scheme, host, port} when not is_nil(scheme) and not is_nil(host) ->
+        build_url_with_config(scheme, host, port, bucket)
+      _ ->
+        "https://s3.amazonaws.com/#{bucket}"
+    end
+  end
+
+  defp build_url_with_config(scheme, host, port, bucket) do
+    case port do
+      443 when scheme == "https://" -> "#{scheme}#{host}/#{bucket}"
+      80 when scheme == "http://" -> "#{scheme}#{host}/#{bucket}"
+      _ -> "#{scheme}#{host}:#{port}/#{bucket}"
+    end
+  end
+
+  defp get_s3_config do
+    ex_aws_config = Application.get_all_env(:ex_aws)
+    s3_config = Keyword.get(ex_aws_config, :s3, [])
+
+    # Use S3 config if provided, regardless of region
+    case s3_config do
+      [] -> {nil, nil, nil}
+      s3_config when is_list(s3_config) ->
+        scheme = Keyword.get(s3_config, :scheme)
+        host = Keyword.get(s3_config, :host)
+        port = Keyword.get(s3_config, :port)
+        {scheme, host, port}
+      s3_config when is_map(s3_config) ->
+        scheme = Map.get(s3_config, :scheme)
+        host = Map.get(s3_config, :host)
+        port = Map.get(s3_config, :port)
+        {scheme, host, port}
+      _ -> {nil, nil, nil}
     end
   end
 
