@@ -309,8 +309,8 @@ defmodule Waffle.Storage.S3 do
   end
 
   defp get_s3_config do
-    ex_aws_config = Application.get_all_env(:ex_aws)
-    s3_config = Keyword.get(ex_aws_config, :s3, [])
+    # Try to get S3 config directly from ex_aws application
+    s3_config = Application.get_env(:ex_aws, :s3, [])
 
     # Use S3 config if provided, regardless of region
     case s3_config do
